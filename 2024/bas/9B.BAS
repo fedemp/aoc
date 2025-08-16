@@ -1,0 +1,43 @@
+10 OPEN "I", #1, "INPUT9.TXT"
+20 KILL "FILES.TXT": OPEN "R", #2, "FILES.TXT", 32: FIELD#2, 32 AS V$
+30 TY=-1: RECID#=0: ID# = 0 'BLOCK TYPE. RECORD ID. FILE ID
+40 C$ = INPUT$(1, #1): IF EOF(1) GOTO 130 
+50 TY=( TY + 1 ) MOD 2
+60 IF TY THEN BLK$="S"+C$+"_" ELSE BLK$ = "F"+C$+"_"
+70 FOR I=1 TO VAL(C$)
+80 IF TY THEN LSET V$=BLK$ + "." ELSE LSET V$=BLK$ + MID$(STR$(ID#), 2)
+90 RECID# = RECID# + 1: PUT #2, RECID#
+100 BLK$=""
+110 NEXT I: IF TY=0 THEN ID#=ID# + 1
+120 GOTO 40
+130 CLOSE #1
+140 FOR RX=RECID# TO 1 STEP -1
+150 GET #2, RX
+160 IF LEFT$(V$,1) <> "F" GOTO 350
+170 CURR$ = V$: FLEN = VAL(MID$(V$,2,1))
+180 FOR I=2 TO RX
+190 GET #2, I
+200 IF LEFT$(V$,1) <> "S" GOTO 340
+210 SLEN = VAL(MID$(V$,2,1))
+220 IF SLEN < FLEN GOTO 340
+230 FID$ = LEFT$(CURR$, 4)
+240 FOR J=I TO I + FLEN - 1 'Move file block
+250 LSET V$ = FID$: PUT #2, J
+260 NEXT J
+270 FOR J=RX TO RX + FLEN - 1 'Overwrite old block position
+280 LSET V$ = ".": PUT #2, J
+290 NEXT J
+300 REM IF there's remaining whitespace, retag it, else exit the spaces loop.
+310 IF SLEN <= FLEN GOTO 350 ELSE GOTO 320
+320 LSET V$ = "S" + RIGHT$(STR$(SLEN - FLEN),1): PUT #2, I+FLEN
+330 GOTO 350 'Finally exit the "search whitespace" loop
+340 NEXT I
+350 NEXT RX
+360 TOTAL# = 0
+370 FOR I=1 TO RECID#
+380 GET #2, I
+390 IF LEFT$(V$,1) = "S" OR LEFT$(V$,1) = "." GOTO 420
+400 IF LEFT$(V$,1) = "F" THEN F# = VAL(MID$(V$, 4)) ELSE F# = VAL(V$)
+410 TOTAL# = TOTAL# + F# * (I - 1)
+420 NEXT I
+430 PRINT "TOTAL:" TOTAL#: END
